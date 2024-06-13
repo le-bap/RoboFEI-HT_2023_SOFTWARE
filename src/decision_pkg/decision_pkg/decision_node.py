@@ -31,39 +31,35 @@ LADO = 0 # 0 vira para o lado DIREITO e 1 para o lado ESQUERDO, depende de que l
 
 class DecisionNode(Node):
 
-    def __init__(self):
+    def __init__(self): # Construtor da decisão
         super().__init__('decision_node')
         self.get_logger().info('Running Decision Node')
-        
+        # Cria os subscribers necessários para o robô entender o que deve ser feito
         # Subscriber do Game Controller
         self.subscription = self.create_subscription(
             GC,
             'gamestate',
             self.listener_callback,
             10)
-        
         # Subscriber da visão 
         self.subscription_vision = self.create_subscription(
             Vision, 
             '/ball_position',
             self.listener_callback_vision,
             10)
-        
         # Subscriber da visão para detecção de robôs inimigos
         self.subscription_robot = self.create_subscription(
             VisionRobot, 
             '/robot_position_enemy',
             self.listener_callback_robot,
             10)
-        
         # Subscriber da posição dos motores do pescoço
         self.subscription_neck = self.create_subscription(
             NeckPosition, 
             '/neck_position',
             self.listener_callback_neck,
             10) 
-        
-        # Subscriber da IMU
+        # Subscribers da IMU para entender o estado do robô
         self.subscription_imu_gyro = self.create_subscription(
             Vector3Stamped, 
             'imu/rpy',
@@ -74,10 +70,9 @@ class DecisionNode(Node):
             'imu/data',
             self.listener_callback_imu_accel,
             10) 
-        
+        # Declaração das variáveis
         self.timer=self.create_timer(0.008,self.timer_callback)
         self._action_client = ActionClient(self, Control, 'control_action')
-        
         self.subscription  
         self.subscription_vision
         self.subscription_neck
@@ -117,14 +112,15 @@ class DecisionNode(Node):
         self.save_ball_right = False
         self.save_need_stand_still = False
         self.cont_turn = 0
-        
-
+    # Listener que capta a posição do pescoço para detectar a bola 
     def listener_callback_neck(self, msg):
         self.neck_position = [msg.position19, msg.position20]
-
+    
+    # IMu_gyru não pé usada
     def listener_callback_imu_gyro(self, msg):
         self.gyro_z = msg.vector.z
-    
+    # Listener da IMU para captar estado do robô
+    # (verfica onde esta o centro de gravidade para saber se esta caído)
     def listener_callback_imu_accel(self, msg):
         self.accel_z = msg.linear_acceleration.z
         self.accel_x = msg.linear_acceleration.x
@@ -152,15 +148,15 @@ class DecisionNode(Node):
       
         if(self.cont_fall_side>=30):
             self.fallen_side = True # Robô caido
-            if(self.accel_x < 0):  # Robô caido de frente
+            if(self.accel_x < 0):  # Robô caido pra direita
                 self.fallenRight = False
                 self.get_logger().info('Caido para a direita')
-            else: # Robô caido de costas
+            else: # Robô caido pra esquedar
                 self.fallenRight = True
                 self.get_logger().info('Caido para a esquerda')
             self.get_logger().info('Caido de lado')
             
-
+    # Listener visão (determna mensagem para cada posição da bola na visão do robõ)
     def listener_callback_vision(self, msg):
         # print("Vision Callback")
         self.BALL_DETECTED = msg.detected
@@ -173,6 +169,7 @@ class DecisionNode(Node):
         self.BALL_MED = msg.med
         self.BALL_CLOSE = msg.close
 
+    # Listener que verifica se a visão do nosso robô encontra outro robô e onda ele está
     def listener_callback_robot(self, msg):
         self.ROBOT_DETECTED = msg.detected
         self.get_logger().info('ROBOT "%s"' % self.ROBOT_DETECTED)
@@ -183,7 +180,8 @@ class DecisionNode(Node):
         self.ROBOT_FAR = msg.far
         self.ROBOT_MED = msg.med
         self.ROBOT_CLOSE = msg.close
-
+    
+    # Listener que recebe em que estado o jogo se encontra 
     def listener_callback(self, msg):
         self.get_logger().info('GAME STATE: "%s"' % msg.game_state)
         self.gamestate = msg.game_state
@@ -194,14 +192,15 @@ class DecisionNode(Node):
         self.has_kick_off = msg.has_kick_off
         self.penaltyshoot_mode = msg.secondary_state_mode
 
+    # Função que determina a tarefa que o robô deve cumprir
     def send_goal(self, order):
         goal_msg = Control.Goal()
         goal_msg.action_number = order
         self._action_client.wait_for_server()
 
-        if order != self.last_movement: # Se tiver que mudar o movimento
+        if order != self.last_movement: # Se tiver que mudar o movimento 
             if (order == 16 or order == 17 or order == 18 or self.last_movement == 8): # Robô caído: prioridade é levantar, por isso ele cancela o que estiver fazendo
-                self._send_goal_future = self.goal_handle.cancel_goal_async()
+                self._send_goal_future = self.goal_handle.cancel_goal_async() 
                 self._send_goal_future.add_done_callback(self.cancel_done)
                 self._send_goal_future = self._action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
                 self._send_goal_future.add_done_callback(self.goal_response_callback)
@@ -215,21 +214,22 @@ class DecisionNode(Node):
                     self.last_movement = order
             self.finished = False
 
-        else: # Mandando a mesma movimentação para o server
+        else: # Se não tiver que mudar o movimento, manda o mesmo
             if self.finished == True:
                 self._send_goal_future = self._action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
                 self.last_movement = order
                 self._send_goal_future.add_done_callback(self.goal_response_callback)
                 self.finished = False
 
-
+    # Função que manda mensagem de "tarefa cancelada"
     def cancel_done(self, future):
         cancel_response = future.result()
         if len(cancel_response.goals_canceling) > 0:
             self.get_logger().info('Goal successfully canceled')
         else:
             self.get_logger().info('Goal failed to cancel')
-
+    
+    # Função que manda se o moviemento foi rejeitado ou não
     def goal_response_callback(self, future):
         self.goal_handle = future.result()
         if not self.goal_handle.accepted:
@@ -241,39 +241,42 @@ class DecisionNode(Node):
         self._get_result_future = self.goal_handle.get_result_async()
         self._get_result_future.add_done_callback(self.get_result_callback)
 
+    # Recebe o resultado do movimento e atualiza o estado do "finished"
     def get_result_callback(self, future):
         result = future.result().result
         self.finished = result.finished
 
+    # Recebe o feedback de quantos movimentos faltam (acho)
     def feedback_callback(self, feedback_msg):
         feedback = feedback_msg.feedback
         self.get_logger().info('Received feedback: %d' % feedback.movements_remaining)
 
 
+    # Controla as ações do robô de acordo com o estado que ele se encontra
     def timer_callback(self):
-        if self.fallen:
-            if self.fallenFront:
+        if self.fallen: 
+            if self.fallenFront: # Se caiu de frente 
                 self.stand_up_front()
                 self.fallenFront = False
             else:
                 pass
                 #self.stand_up_back()
             self.fallen = False
-        elif self.fallen_side:
+        elif self.fallen_side: # Se caiu de lateralmente
             if self.fallenRight:
                 self.stand_right()
                 self.fallenRight = False
             else:
                 self.stand_left()
             self.fallen_side = False
-        else:
-            if(ROBOT_NUMBER != 1): # JOGADOR
-                if(self.gamestate == 0): # Initial state - Robô parado em pé
+        else: # Se não caiu
+            if(ROBOT_NUMBER != 1): # se for JOGADOR
+                if(self.gamestate == 0): # 0: Robô parado em pé
                     self.ready_robot = False
                     self.gait()
                     self.get_logger().info('INITIAL: Initial State')
 
-                elif(self.gamestate == 1 and not self.ready_robot): # Robô vai para a posição inicial    
+                elif(self.gamestate == 1 and not self.ready_robot): # 1: Robô vai para a posição inicial    
                     if (self.contador < 3000):
                         self.walking()
                         self.contador+=1
@@ -281,12 +284,12 @@ class DecisionNode(Node):
                         self.turn_left()
                         
                     
-                elif(self.gamestate == 2): # Espera o jogo começar
+                elif(self.gamestate == 2): # 2: Espera o jogo começar
                     self.get_logger().info('SET: Keep ready')
                     self.gait()
                     self.contador = 0
 
-                elif(self.gamestate == 3):
+                elif(self.gamestate == 3): # 3: Tomadas de decisão "a parte" do jogo normal (acho) - dependem do estado do secstate
                     if(self.secstate == 6): # Penalti do oponente
                         self.gait()
 
@@ -355,7 +358,7 @@ class DecisionNode(Node):
                         self.gait()
 
                     else: # Jogo Normal
-                        if(self.BALL_DETECTED == False):
+                        if(self.BALL_DETECTED == False): # Se a bola não for detectada, é definido o comportamento do robô a partir do numero de tentativas de cada movimento (os conts)
                             self.get_logger().info('CONT FALSES %d' %self.cont_falses)
                             self.get_logger().info('CONT TURN CENTRALIZE %d' %self.cont_turn)
                             if (self.save_ball_left and self.cont_turn < 250):
@@ -384,15 +387,22 @@ class DecisionNode(Node):
                                     self.cont_falses += 1
                                     self.search_ball() # Procura a bola
                             else:
-                                self.cont_falses += 1
+                                self.cont_falses += 1 # Enquanto a bola não for achada, o robo permanece incrementando o cont_falses para determinar o que deve ser feito
                             
-                        else:
+                        else: # Se a bola for encontrada
                             self.cont_falses = 0
                             self.cont_turn = 0
                             self.save_ball_left = False
                             self.save_ball_right = False
                             self.get_logger().info('BALL DETECTED')
-                            if (self.neck_position[0] < 1700):
+                            # define o movimento do pescoço em relação a posição da bola
+                            if(self.BALL_LEFT and self.neck_position[0] < 2650): 
+                                self.turn_head_left()
+                                self.save_ball_left = True
+                            elif(self.BALL_RIGHT and self.neck_position[0] > 1350):
+                                self.turn_head_right()
+                                self.save_ball_right = True
+                            elif (self.neck_position[0] < 1700):
                                 self.turn_right()
                             elif (self.neck_position[0] > 2300):
                                 self.turn_left()
@@ -419,7 +429,7 @@ class DecisionNode(Node):
                 elif(self.gamestate == 4): # Jogo terminou, robô sai do campo
                     self.stand_still()
             
-            else: # GOLEIRO
+            else: # GOLEIRO essa já não é a lógica do goleiro?
                 if(self.gamestate == 0): # Initial state - Robô parado em pé
                     self.stand_still()
                     self.get_logger().info('INITIAL: Initial State')
@@ -433,11 +443,12 @@ class DecisionNode(Node):
                     self.stand_still()
 
                 elif(self.gamestate == 3): # Jogo começou
-                    if(self.BALL_DETECTED == False):
+                    if(self.BALL_DETECTED == False): # Se a bola não foi achada
                         self.get_logger().info('BALL NOT FOUND')
                         self.search_ball() # Procura a bola
-                    else:
+                    else: # Se bola foi achada
                         self.get_logger().info('BALL DETECTED')
+                        # Define o que o goleiro deve fazer de acordo com a posição da bola
                         if (self.BALL_FAR and self.BALL_RIGHT):
                             self.goalkeeper_penalty_feather_falling_right() 
                         elif (self.BALL_FAR and self.BALL_LEFT):
@@ -451,7 +462,7 @@ class DecisionNode(Node):
                 elif(self.gamestate == 4): # Jogo terminou, robô sai do campo
                     self.stand_still()
 
-
+    # Funções que relacionam o movimento executado com o control
     def stand_still(self): # Robô em pé parado
         self.send_goal(1)
         self.get_logger().info('Stand still')
@@ -572,8 +583,6 @@ class DecisionNode(Node):
         self.send_goal(34)
         self.get_logger().info('Stand up right')
 
-
-
 def main(args=None):
     rclpy.init(args=args)
 
@@ -582,7 +591,6 @@ def main(args=None):
     rclpy.spin(decisionNode)
     decisionNode.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()
