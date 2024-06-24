@@ -118,7 +118,7 @@ void RobotBehavior::player_normal_game() // fazer
 
 bool RobotBehavior::is_goalkeeper(int ROBOT_NUMBER)
 {
-    return ROBOT_NUMBER == 1
+    return ROBOT_NUMBER == 1;
 }
 
 void RobotBehavior::goalkeeper_normal_game() 
