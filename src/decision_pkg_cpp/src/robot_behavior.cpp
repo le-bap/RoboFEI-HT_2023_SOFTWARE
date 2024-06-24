@@ -54,9 +54,8 @@ void RobotBehavior::normal_game()
     //     break;
     
     case GameControllerMsg::GAMESTATE_PLAYING: // fazer
-        player_normal_game();
-        // if(is_goalkeeper(ROBOT_NUMBER)) goalkeeper_normal_game(); // fazer
-        // // else player_normal_game();
+        if(is_goalkeeper(ROBOT_NUMBER)) goalkeeper_normal_game(); // testar
+        else player_normal_game();
         break;
     
     case GameControllerMsg::GAMESTATE_FINISHED: // feito
@@ -114,6 +113,57 @@ void RobotBehavior::player_normal_game() // fazer
         break;
     default:
         break;
+    }
+}
+
+bool RobotBehavior::is_goalkeeper(int ROBOT_NUMBER)
+{
+    return ROBOT_NUMBER == 1
+}
+
+void RobotBehavior::goalkeeper_normal_game() 
+{
+    RCLCPP_INFO(this->get_logger(), "robot state %d", robot.state);
+    switch (robot.state)
+        {
+        case searching_ball:
+            //RCLCPP_INFO(this->get_logger(), "Searching ball");
+            if(ball_is_locked()) // se a bola foi achada
+            {
+                if(robot.ball_position == center) robot.state = ball_approach;
+                robot.state = aligning_with_the_ball; // robo deve se alinha com a bola
+            }
+            else if(lost_ball_timer.delayNR(MAX_LOST_BALL_TIME)) turn_to_ball(); // caso a bola nao tenha sido achada
+            else send_goal(gait);
+            break;
+        
+        case aligning_with_the_ball: 
+            //RCLCPP_INFO(this->get_logger(), "Aligning with the_ball");
+            if(robot_align_with_the_ball()){
+                if (robot.ball_position == left) send_goal(walk_left); 
+                else if (robot.ball_position == right) send_goal(walk_right);
+                else if (robot.ball_position == center) robot.state = ball_approach;  
+            } 
+            else if(ball_is_locked()) turn_to_ball();
+            else if(!robot.camera_ball_position.detected) robot.state = searching_ball;
+            else send_goal(gait);
+            break;
+    
+        case ball_approach: // se a bola foi encontrada
+            if(ball_in_close_limit() && ball_is_locked() && robot.camera_ball_position.close) robot.state = ball_close;
+            else if(!robot.camera_ball_position.detected) robot.state = searching_ball; // pode estar bugando
+            else if(!robot_align_with_the_ball()) robot.state = aligning_with_the_ball;
+            else send_goal(gait);
+            break;
+    
+        case ball_close: 
+            if(!robot.camera_ball_position.detected) robot.state = searching_ball;
+            else if(!robot_align_with_the_ball()) robot.state = aligning_with_the_ball;
+            else send_goal(squat);
+            break;
+    
+        default:
+            break;
     }
 }
 
