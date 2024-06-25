@@ -32,6 +32,7 @@ enum Move
     turn_right      = 5,
     turn_left       = 6,
     goodbye         = 7,
+    squat           = 13,
     walk            = 14,
     gait            = 15,
     stand_up_back   = 16,
