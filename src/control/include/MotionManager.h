@@ -21,8 +21,6 @@
 #include "Action.h"
 #include "Walking.h"
 
-// #include "custom_interfaces/msg/set_position.hpp"
-// #include "custom_interfaces/msg/set_position_original.hpp"
 #include "custom_interfaces/msg/joint_state.hpp"
 #include "custom_interfaces/srv/get_position.hpp"
 #include "custom_interfaces/msg/walk.hpp"
@@ -56,55 +54,41 @@ namespace Robot
 
 		rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr subscription_imu;
 		rclcpp::Subscription<custom_interfaces::msg::Walk>::SharedPtr subscription_walk;
-		// rclcpp::Subscription<custom_interfaces::msg::SetPosition>::SharedPtr subscription_positions;
-		rclcpp::Subscription<JointStateMsg>::SharedPtr subscription_positions;
-		// rclcpp::Publisher<custom_interfaces::msg::SetPosition>::SharedPtr publisher_;  
-		// rclcpp::Publisher<custom_interfaces::msg::SetPositionOriginal>::SharedPtr publisher_single;
 		rclcpp::Publisher<JointStateMsg>::SharedPtr pubisher_body_joints_;
 		rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr publisher_fase_zero; 
+
 		rclcpp::Client<custom_interfaces::srv::GetPosition>::SharedPtr client;
  
 		
-	rclcpp::TimerBase::SharedPtr timer_;
+		rclcpp::TimerBase::SharedPtr timer_;
 		std::ofstream m_LogFileStream;
 
-	AngleEstimator m_angleEstimator;
-	bool m_fadeIn;
-	int m_torque_count;
+		AngleEstimator m_angleEstimator;
+		bool m_fadeIn;
+		int m_torque_count;
 
-	FILE* m_voltageLog;
+		FILE* m_voltageLog;
 
-	
-	void topic_callback(const std::shared_ptr<sensor_msgs::msg::Imu> imu_msg_) const;
-	void topic_callback_walk(const std::shared_ptr<custom_interfaces::msg::Walk> walk_msg_) const;
-	void topic_callback_positions(const std::shared_ptr<JointStateMsg> position_msg_) const;
-	unsigned int m_torqueAdaptionCounter;
-	double m_voltageAdaptionFactor;
-	std::thread update_thread_;
-	void update_loop(void);
+		void topic_callback(const std::shared_ptr<sensor_msgs::msg::Imu> imu_msg_) const;
+		void topic_callback_walk(const std::shared_ptr<custom_interfaces::msg::Walk> walk_msg_) const;
+		void topic_callback_positions(const std::shared_ptr<JointStateMsg> position_msg_) const;
+		unsigned int m_torqueAdaptionCounter;
+		double m_voltageAdaptionFactor;
+		std::thread update_thread_;
+		void update_loop(void);
 
-	void GetIniParameter();
-	
-	//void adaptTorqueToVoltage();
-	
-	//void logVoltage(int voltage);
-	
-	//void logServo();
-
-	protected:
+		void GetIniParameter();
 
 	public:
 		bool DEBUG_PRINT;
     	int m_Offset[JointData::NUMBER_OF_JOINTS];
     	int *memBB;
 
-	minIni* ini;
-	 bool keep_walking;
+		minIni* ini;
+	 	bool keep_walking;
 
 		~MotionManager();
-		MotionManager(const rclcpp::NodeOptions & options);
-
-		static MotionManager* GetInstance() { return m_UniqueInstance; }
+		MotionManager();
 
 		bool Initialize(bool fadeIn = true);
 		bool Reinitialize();
@@ -121,8 +105,6 @@ namespace Robot
 
 		void StartLogging();
 		void StopLogging();
-
-		
 
         void LoadINISettings(minIni* ini);
         void LoadINISettings(minIni* ini, const std::string &section);
