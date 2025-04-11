@@ -31,7 +31,7 @@ include_directories(${CURSES_INCLUDE_DIR})
 find_library(LIBRT rt) 
 set(CURSES_NEED_NCURSES TRUE)
 find_package(Curses)
-
+    
 include_directories(include)
 include_directories(src/minIni)
 include_directories(include/json/include/nlohmann)
@@ -76,7 +76,25 @@ install(TARGETS
 )
 
 # gait publisher
-add_executable(gait_publisher src/motion/MotionManager.cpp)
+add_executable(gait_publisher
+  src/motion/MotionManager.cpp
+  src/motion/AngleEstimator.cpp
+  src/motion/JointData.cpp
+  src/motion/MotionStatus.cpp
+
+  src/motion/modules/Walking.cpp
+  src/motion/modules/Action.cpp
+  
+  src/math/MotionState.cpp
+  src/math/Matrix.cpp
+  src/math/Vector.cpp
+  src/math/Point.cpp
+  src/math/QuadraticStateTransform.cpp
+  
+  src/minIni/minIni.cpp
+)
+
+
 ament_target_dependencies(gait_publisher
   custom_interfaces
   rclcpp
